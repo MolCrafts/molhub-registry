@@ -1,0 +1,6 @@
+# Generated from artifacts/ by the MolHub toolchain. Never committed.
+dist/
+.molhub-tooling/
+
+.DS_Store
+*.log

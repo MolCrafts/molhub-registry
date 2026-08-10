@@ -1,0 +1,57 @@
+name: registry locator health
+
+on:
+  schedule:
+    - cron: "23 4 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out approved manifests
+        uses: actions/checkout@v4
+      - name: Check out MolHub health tooling
+        uses: actions/checkout@v4
+        with:
+          repository: MolCrafts/molhub
+          ref: main
+          path: .molhub-tooling
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: .molhub-tooling/package-lock.json
+      - run: npm ci --prefix .molhub-tooling
+      - name: Enforce the data-only repository boundary
+        run: npm --prefix .molhub-tooling run registry:layout -- "$GITHUB_WORKSPACE"
+      - name: Validate and build the current database
+        run: |
+          npm --prefix .molhub-tooling run registry:validate -- "$GITHUB_WORKSPACE/artifacts"
+          npm --prefix .molhub-tooling run registry:build -- "$GITHUB_WORKSPACE/artifacts" "$GITHUB_WORKSPACE/dist"
+      - name: Check locator metadata without downloading artifacts
+        id: health
+        continue-on-error: true
+        run: >-
+          npm --prefix .molhub-tooling run registry:health --
+          "$GITHUB_WORKSPACE/dist/registry.json"
+          "$GITHUB_WORKSPACE/registry-health-report.json"
+      - name: Retain the read-only health report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: registry-health-${{ github.run_id }}
+          path: registry-health-report.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Summarize failures by source and coordinate
+        if: always()
+        run: |
+          jq -r '.results[] | select(.ok == false) | "- `\(.source)` `\(.coordinate)#\(.role)`: \(.message)"' registry-health-report.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Fail when locator metadata is unhealthy
+        if: steps.health.outcome == 'failure'
+        run: exit 1
