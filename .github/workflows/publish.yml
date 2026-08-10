@@ -27,7 +27,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: MolCrafts/molhub
-          ref: main
+          # Tooling (registry:validate/build) lives on molhub's integration branch.
+          ref: dev
           path: .molhub-tooling
 
       - name: Set up Node
@@ -63,16 +64,22 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-      - name: Require the registry Pages project name
+      - name: Detect Cloudflare Pages publish configuration
+        id: cloudflare
         env:
           PROJECT: ${{ vars.CLOUDFLARE_REGISTRY_PROJECT }}
+          API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          if [ -z "$PROJECT" ]; then
-            echo "::error::Repository variable CLOUDFLARE_REGISTRY_PROJECT is unset."
-            exit 1
+          if [ -z "$PROJECT" ] || [ -z "$API_TOKEN" ] || [ -z "$ACCOUNT_ID" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Cloudflare Pages publish skipped — set CLOUDFLARE_REGISTRY_PROJECT, CLOUDFLARE_API_TOKEN, and CLOUDFLARE_ACCOUNT_ID when ready."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Publish the static registry read model
+        if: steps.cloudflare.outputs.configured == 'true'
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -84,6 +91,7 @@ jobs:
             --branch=${{ github.ref_name }}
 
       - name: Request a MolHub Web refresh
+        if: steps.cloudflare.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ secrets.MOLHUB_WEB_DISPATCH_TOKEN }}
         run: |

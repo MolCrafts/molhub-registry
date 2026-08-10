@@ -25,7 +25,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: MolCrafts/molhub
-          ref: main
+          # Tooling (registry:validate/build) lives on molhub's integration branch.
+          ref: dev
           path: .molhub-tooling
 
       - name: Set up Node
