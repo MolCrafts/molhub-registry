@@ -10,11 +10,11 @@ outputs:
 runs:
   using: composite
   steps:
-    - uses: ./.github/actions/setup-partners
+    - uses: MolCrafts/molcrafts-ci/actions/setup-partners@master
       with:
         repository: MolCrafts/molhub
         path: .molhub-tooling
-    - uses: ./.github/actions/setup-node
+    - uses: MolCrafts/molcrafts-ci/actions/setup-node@master
       with:
         working-directory: .molhub-tooling
     - shell: bash
