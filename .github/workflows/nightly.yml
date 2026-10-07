@@ -1,0 +1,42 @@
+name: nightly
+
+# Upstream only, weekly: every locator's metadata is still reachable and
+# matches its manifest (no artifact is downloaded).
+on:
+  schedule:
+    - cron: "23 4 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    name: nightly / health
+    if: github.repository_owner == 'MolCrafts'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - id: registry
+        uses: ./.github/actions/build-registry
+      - name: Check locator metadata
+        id: health
+        continue-on-error: true
+        env:
+          TOOLING: ${{ steps.registry.outputs.tooling }}
+        run: npm --prefix "$TOOLING" run registry:health -- "$GITHUB_WORKSPACE/dist/registry.json" "$GITHUB_WORKSPACE/registry-health-report.json"
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: registry-health-${{ github.run_id }}
+          path: registry-health-report.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Summarize failures by source and coordinate
+        if: always()
+        run: >-
+          jq -r '.results[] | select(.ok == false) | "- `\(.source)` `\(.coordinate)#\(.role)`: \(.message)"' registry-health-report.json
+          >> "$GITHUB_STEP_SUMMARY"
+      - if: steps.health.outcome == 'failure'
+        run: exit 1

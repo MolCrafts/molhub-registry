@@ -1,0 +1,47 @@
+name: test
+
+# Contexts (see "CI" in README.md):
+#   feature branch push (fork or upstream)  test / registry
+#   dev / main, or a PR into one             + test / tooling
+# A PR from a branch of the same repository skips what its push already ran.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [dev, master, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' && !contains(fromJSON('["refs/heads/dev","refs/heads/master","refs/heads/main"]'), github.ref) }}
+
+jobs:
+  # This database: data-only layout, every manifest valid, read models build.
+  registry:
+    name: test / registry
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/build-registry
+
+  # The MolHub contract and registry tooling this database is judged by.
+  tooling:
+    name: test / tooling
+    if: github.event_name != 'push' || contains(fromJSON('["refs/heads/dev","refs/heads/master","refs/heads/main"]'), github.ref)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - id: registry
+        uses: ./.github/actions/build-registry
+      - working-directory: ${{ steps.registry.outputs.tooling }}
+        run: |
+          npm run contract:check
+          npm run lint --workspace @molcrafts/molhub-registry-tools
+          npm run typecheck --workspace @molcrafts/molhub-registry-tools
+          npm run registry:test

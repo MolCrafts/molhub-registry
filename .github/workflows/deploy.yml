@@ -1,0 +1,63 @@
+name: deploy
+
+# Upstream only: a push to main publishes the registry read model to
+# Cloudflare Pages and asks MolHub Web to rebuild against it. Until the
+# Cloudflare settings exist the snapshot is still built and kept as an
+# artifact, and the publish steps are skipped with a warning.
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    name: deploy / snapshot
+    if: github.repository_owner == 'MolCrafts'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/build-registry
+      - run: printf '%s\n' "$GITHUB_SHA" > dist/SOURCE_REVISION
+      - uses: actions/upload-artifact@v7
+        with:
+          name: molhub-registry-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 90
+      - id: cloudflare
+        env:
+          PROJECT: ${{ vars.CLOUDFLARE_REGISTRY_PROJECT }}
+          API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$PROJECT" ] && [ -n "$API_TOKEN" ] && [ -n "$ACCOUNT_ID" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Cloudflare Pages publish skipped: set CLOUDFLARE_REGISTRY_PROJECT, CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID."
+          fi
+      - if: steps.cloudflare.outputs.configured == 'true'
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          gitHubToken: ${{ github.token }}
+          command: pages deploy dist --project-name=${{ vars.CLOUDFLARE_REGISTRY_PROJECT }} --branch=${{ github.ref_name }}
+      - name: Ask MolHub Web to rebuild
+        if: steps.cloudflare.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.MOLHUB_WEB_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::MOLHUB_WEB_DISPATCH_TOKEN is unset; the registry is published but MolHub Web will not refresh."
+            exit 0
+          fi
+          gh api repos/MolCrafts/molhub/dispatches -f event_type=registry-published -f "client_payload[registry_sha]=$GITHUB_SHA"
