@@ -1,0 +1,26 @@
+name: build-registry
+description: >
+  Check out the MolHub toolchain (the partner that owns the schema and the
+  validators), enforce the data-only layout, validate artifacts/ and build
+  the deterministic read models into dist/.
+outputs:
+  tooling:
+    description: Directory of the MolHub checkout
+    value: .molhub-tooling
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/setup-partners
+      with:
+        repository: MolCrafts/molhub
+        path: .molhub-tooling
+    - uses: ./.github/actions/setup-node
+      with:
+        working-directory: .molhub-tooling
+    - shell: bash
+      run: |
+        set -euo pipefail
+        npm --prefix .molhub-tooling run registry:layout -- "$GITHUB_WORKSPACE"
+        npm --prefix .molhub-tooling run registry:validate -- "$GITHUB_WORKSPACE/artifacts"
+        npm --prefix .molhub-tooling run registry:build -- "$GITHUB_WORKSPACE/artifacts" "$GITHUB_WORKSPACE/dist"
+        test -s dist/registry.json && test -s dist/registry.yaml

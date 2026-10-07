@@ -56,6 +56,21 @@ The manifest contract is documented in
 - `dist/` is disposable output and must not be committed.
 - CI checks out the MolHub toolchain and validates this database with it.
 
+## CI
+
+Every workflow checks out the MolHub toolchain (`MolCrafts/molhub` at `dev`,
+or its branch of the same name as the one being built) and validates this
+database with it; see `.github/actions/build-registry`.
+
+| workflow | feature branch (fork or upstream) | dev / main, or a PR into one | upstream only |
+|---|---|---|---|
+| `test.yml` | `test / registry` (layout, validate, build read models) | + `test / tooling` (MolHub contract and registry-tools gates) | — |
+| `deploy.yml` | — | — | push to `main`: `deploy / snapshot` publishes `dist/` to Cloudflare Pages and asks MolHub Web to rebuild |
+| `nightly.yml` | — | — | weekly: `nightly / health` checks every locator's metadata |
+
+A pull request from a branch of the same repository skips the jobs its push
+already ran.
+
 ## License
 
 BSD-3-Clause.

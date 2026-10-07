@@ -6,7 +6,7 @@ mol_project:
   science:
     required: false
   ci:
-    config: .github/workflows/validate.yml
+    config: .github/workflows/test.yml
 ---
 
 # CLAUDE.md
