@@ -62,14 +62,18 @@ Every workflow checks out the MolHub toolchain (`MolCrafts/molhub` at `dev`,
 or its branch of the same name as the one being built) and validates this
 database with it; see `.github/actions/build-registry`.
 
-| workflow | feature branch (fork or upstream) | dev / main, or a PR into one | upstream only |
+`test / tier` picks the tier: fast on a feature-branch push to MolCrafts, full
+on every push to a fork (proven before its pull request), on `dev`, `master`
+and `main` on MolCrafts, on pull requests, tags and dispatches.
+
+| workflow | fast tier | full tier | upstream only |
 |---|---|---|---|
-| `test.yml` | `test / registry` (layout, validate, build read models) | + `test / tooling` (MolHub contract and registry-tools gates) | — |
+| `test.yml` | `test / tier`, `test / registry` (layout, validate, build read models) | + `test / tooling` (MolHub contract and registry-tools gates) | — |
 | `deploy.yml` | — | — | push to `main`: `deploy / snapshot` publishes `dist/` to Cloudflare Pages and asks MolHub Web to rebuild |
 | `nightly.yml` | — | — | weekly: `nightly / health` checks every locator's metadata |
 
-A pull request from a branch of the same repository skips the jobs its push
-already ran.
+A pull request inside a fork is skipped: its push already ran the full tier.
+The shared setup actions come from `MolCrafts/molcrafts-ci/actions/*@master`.
 
 ## License
 
