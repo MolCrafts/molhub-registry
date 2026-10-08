@@ -62,13 +62,15 @@ Every workflow checks out the MolHub toolchain (`MolCrafts/molhub` at `dev`,
 or its branch of the same name as the one being built) and validates this
 database with it; see `.github/actions/build-registry`.
 
-`test / tier` picks the tier: fast on a feature-branch push to MolCrafts, full
+Each workflow's first job, `<file> / context`, runs
+`MolCrafts/molcrafts-ci/actions/ci-context`, and every other job gates on its
+outputs. The tier is fast on a feature-branch push to MolCrafts, full
 on every push to a fork (proven before its pull request), on `dev`, `master`
 and `main` on MolCrafts, on pull requests, tags and dispatches.
 
 | workflow | fast tier | full tier | upstream only |
 |---|---|---|---|
-| `test.yml` | `test / tier`, `test / registry` (layout, validate, build read models) | + `test / tooling` (MolHub contract and registry-tools gates) | — |
+| `test.yml` | `test / context`, `test / registry` (layout, validate, build read models) | + `test / tooling` (MolHub contract and registry-tools gates) | — |
 | `deploy.yml` | — | — | push to `main`: `deploy / snapshot` publishes `dist/` to Cloudflare Pages and asks MolHub Web to rebuild |
 | `nightly.yml` | — | — | weekly: `nightly / health` checks every locator's metadata |
 
