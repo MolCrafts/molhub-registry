@@ -70,6 +70,7 @@ and `main` on MolCrafts, on pull requests, tags and dispatches.
 
 | workflow | fast tier | full tier | upstream only |
 |---|---|---|---|
+| `lint.yml` | `lint / context`, `lint / workflows` (the workflows against the MolCrafts CI scheme, `actions/check-workflows`) | same | — |
 | `test.yml` | `test / context`, `test / registry` (layout, validate, build read models) | + `test / tooling` (MolHub contract and registry-tools gates) | — |
 | `deploy.yml` | — | — | push to `main`: `deploy / snapshot` publishes `dist/` to Cloudflare Pages and asks MolHub Web to rebuild |
 | `nightly.yml` | — | — | weekly: `nightly / health` checks every locator's metadata |
