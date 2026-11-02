@@ -29,6 +29,7 @@ jobs:
       integration: ${{ steps.context.outputs.integration }}
       skip-pr: ${{ steps.context.outputs.skip-pr }}
       publish: ${{ steps.context.outputs.publish }}
+      deploy: ${{ steps.context.outputs.deploy }}
     steps:
       - id: context
         uses: MolCrafts/molcrafts-ci/actions/ci-context@master
@@ -36,7 +37,7 @@ jobs:
   snapshot:
     name: deploy / snapshot
     needs: context
-    if: needs.context.outputs.upstream == 'true'
+    if: needs.context.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -44,7 +45,21 @@ jobs:
       deployments: write
     steps:
       - uses: actions/checkout@v7
-      - uses: ./.github/actions/build-registry
+      - uses: MolCrafts/molcrafts-ci/actions/setup-partners@master
+        with:
+          repository: MolCrafts/molhub
+          ref: dev
+          path: .molhub-tooling
+      - uses: MolCrafts/molcrafts-ci/actions/setup-node@master
+        with:
+          working-directory: .molhub-tooling
+      - name: Layout, validate, and build the registry
+        run: |
+          set -euo pipefail
+          npm --prefix .molhub-tooling run registry:layout -- "$GITHUB_WORKSPACE"
+          npm --prefix .molhub-tooling run registry:validate -- "$GITHUB_WORKSPACE/artifacts"
+          npm --prefix .molhub-tooling run registry:build -- "$GITHUB_WORKSPACE/artifacts" "$GITHUB_WORKSPACE/dist"
+          test -s dist/registry.json && test -s dist/registry.yaml
       - run: printf '%s\n' "$GITHUB_SHA" > dist/SOURCE_REVISION
       - uses: actions/upload-artifact@v7
         with:

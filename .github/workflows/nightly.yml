@@ -27,6 +27,7 @@ jobs:
       integration: ${{ steps.context.outputs.integration }}
       skip-pr: ${{ steps.context.outputs.skip-pr }}
       publish: ${{ steps.context.outputs.publish }}
+      source-ref: ${{ steps.context.outputs.source-ref }}
     steps:
       - id: context
         uses: MolCrafts/molcrafts-ci/actions/ci-context@master
@@ -39,13 +40,28 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - id: registry
-        uses: ./.github/actions/build-registry
+        with:
+          ref: ${{ needs.context.outputs.source-ref }}
+      - uses: MolCrafts/molcrafts-ci/actions/setup-partners@master
+        with:
+          repository: MolCrafts/molhub
+          ref: dev
+          path: .molhub-tooling
+      - uses: MolCrafts/molcrafts-ci/actions/setup-node@master
+        with:
+          working-directory: .molhub-tooling
+      - name: Layout, validate, and build the registry
+        run: |
+          set -euo pipefail
+          npm --prefix .molhub-tooling run registry:layout -- "$GITHUB_WORKSPACE"
+          npm --prefix .molhub-tooling run registry:validate -- "$GITHUB_WORKSPACE/artifacts"
+          npm --prefix .molhub-tooling run registry:build -- "$GITHUB_WORKSPACE/artifacts" "$GITHUB_WORKSPACE/dist"
+          test -s dist/registry.json && test -s dist/registry.yaml
       - name: Check locator metadata
         id: health
         continue-on-error: true
         env:
-          TOOLING: ${{ steps.registry.outputs.tooling }}
+          TOOLING: .molhub-tooling
         run: npm --prefix "$TOOLING" run registry:health -- "$GITHUB_WORKSPACE/dist/registry.json" "$GITHUB_WORKSPACE/registry-health-report.json"
       - if: always()
         uses: actions/upload-artifact@v7

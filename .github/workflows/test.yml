@@ -20,7 +20,7 @@ permissions:
 # superseded runs. The canonical block: actions/check-workflows.
 concurrency:
   group: test-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: ${{ !contains(fromJSON('["refs/heads/dev","refs/heads/master","refs/heads/main"]'), github.ref) && !startsWith(github.ref, 'refs/tags/') }}
+  cancel-in-progress: ${{ !contains(fromJSON('["refs/heads/dev","refs/heads/master"]'), github.ref) && !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   # Where this run happens, decided once: MolCrafts/molcrafts-ci/actions/ci-context.
@@ -46,7 +46,21 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-      - uses: ./.github/actions/build-registry
+      - uses: MolCrafts/molcrafts-ci/actions/setup-partners@master
+        with:
+          repository: MolCrafts/molhub
+          ref: dev
+          path: .molhub-tooling
+      - uses: MolCrafts/molcrafts-ci/actions/setup-node@master
+        with:
+          working-directory: .molhub-tooling
+      - name: Layout, validate, and build the registry
+        run: |
+          set -euo pipefail
+          npm --prefix .molhub-tooling run registry:layout -- "$GITHUB_WORKSPACE"
+          npm --prefix .molhub-tooling run registry:validate -- "$GITHUB_WORKSPACE/artifacts"
+          npm --prefix .molhub-tooling run registry:build -- "$GITHUB_WORKSPACE/artifacts" "$GITHUB_WORKSPACE/dist"
+          test -s dist/registry.json && test -s dist/registry.yaml
 
   # The MolHub contract and registry tooling this database is judged by.
   tooling:
@@ -57,9 +71,22 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-      - id: registry
-        uses: ./.github/actions/build-registry
-      - working-directory: ${{ steps.registry.outputs.tooling }}
+      - uses: MolCrafts/molcrafts-ci/actions/setup-partners@master
+        with:
+          repository: MolCrafts/molhub
+          ref: dev
+          path: .molhub-tooling
+      - uses: MolCrafts/molcrafts-ci/actions/setup-node@master
+        with:
+          working-directory: .molhub-tooling
+      - name: Layout, validate, and build the registry
+        run: |
+          set -euo pipefail
+          npm --prefix .molhub-tooling run registry:layout -- "$GITHUB_WORKSPACE"
+          npm --prefix .molhub-tooling run registry:validate -- "$GITHUB_WORKSPACE/artifacts"
+          npm --prefix .molhub-tooling run registry:build -- "$GITHUB_WORKSPACE/artifacts" "$GITHUB_WORKSPACE/dist"
+          test -s dist/registry.json && test -s dist/registry.yaml
+      - working-directory: .molhub-tooling
         run: |
           npm run contract:check
           npm run lint --workspace @molcrafts/molhub-registry-tools
