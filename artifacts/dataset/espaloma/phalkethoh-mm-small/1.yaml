@@ -5,7 +5,6 @@
 # ``scripts/convert_espaloma_phalkethoh_mm.py`` (requires dgl once at convert time).
 # Adapter :class:`~molhub.dataset.PhalkethohMMDataset` reads the normalized tree
 # (splits.json + mols/<id>/{atoms,confs}.npz); unit tests use synthetic fixtures.
-schema_version: 1
 kind: dataset
 namespace: espaloma
 name: phalkethoh-mm-small

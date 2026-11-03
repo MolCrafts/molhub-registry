@@ -5,7 +5,6 @@
 # molecular structures (zinc.sdf) with stable molecule identity and covalent
 # graphs. GAFF string labels may be attached offline (see convert script) —
 # unit tests use synthetic fixtures with hard-coded labels.
-schema_version: 1
 kind: dataset
 namespace: espaloma
 name: zinc-typing
