@@ -46,7 +46,7 @@ npm run registry:build -- ../molhub-registry/artifacts ../molhub-registry/dist
 ```
 
 The manifest contract is documented in
-[`spec/manifest.schema.yaml`](https://github.com/MolCrafts/molhub/blob/main/spec/manifest.schema.yaml).
+[`spec/manifest.schema.yaml`](https://github.com/MolCrafts/molhub/blob/dev/spec/manifest.schema.yaml).
 
 ## Repository contract
 
