@@ -1,12 +1,12 @@
 name: deploy
 
-# Upstream only: a push to main publishes the registry read model to
+# Upstream only: a push to master publishes the registry read model to
 # Cloudflare Pages and asks MolHub Web to rebuild against it. Until the
 # Cloudflare settings exist the snapshot is still built and kept as an
 # artifact, and the publish steps are skipped with a warning.
 on:
   push:
-    branches: [main, master]
+    branches: [master]
   workflow_dispatch:
 
 permissions:
@@ -19,20 +19,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Where this run happens, decided once: MolCrafts/molcrafts-ci/actions/ci-context.
+  # Where this run happens, decided once: MolCrafts/molcrafts-ci context.yml.
   context:
-    name: deploy / context
-    runs-on: ubuntu-latest
-    outputs:
-      tier: ${{ steps.context.outputs.tier }}
-      upstream: ${{ steps.context.outputs.upstream }}
-      integration: ${{ steps.context.outputs.integration }}
-      skip-pr: ${{ steps.context.outputs.skip-pr }}
-      publish: ${{ steps.context.outputs.publish }}
-      deploy: ${{ steps.context.outputs.deploy }}
-    steps:
-      - id: context
-        uses: MolCrafts/molcrafts-ci/actions/ci-context@master
+    permissions:
+      contents: read
+    name: deploy
+    uses: MolCrafts/molcrafts-ci/.github/workflows/context.yml@3cc26f4ff1b8b6d09365d677c4a05cc8cbb70a76
 
   snapshot:
     name: deploy / snapshot
@@ -40,17 +32,19 @@ jobs:
     if: needs.context.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # The Cloudflare token and account live in this environment.
+    environment: cloudflare-pages
     permissions:
       contents: read
       deployments: write
     steps:
       - uses: actions/checkout@v7
-      - uses: MolCrafts/molcrafts-ci/actions/setup-partners@master
+      - uses: MolCrafts/molcrafts-ci/actions/setup-partners@3cc26f4ff1b8b6d09365d677c4a05cc8cbb70a76
         with:
           repository: MolCrafts/molhub
           ref: dev
           path: .molhub-tooling
-      - uses: MolCrafts/molcrafts-ci/actions/setup-node@master
+      - uses: MolCrafts/molcrafts-ci/actions/setup-node@3cc26f4ff1b8b6d09365d677c4a05cc8cbb70a76
         with:
           working-directory: .molhub-tooling
       - name: Layout, validate, and build the registry

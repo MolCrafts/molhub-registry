@@ -46,7 +46,7 @@ npm run registry:build -- ../molhub-registry/artifacts ../molhub-registry/dist
 ```
 
 The manifest contract is documented in
-[`spec/manifest.schema.yaml`](https://github.com/MolCrafts/molhub/blob/main/spec/manifest.schema.yaml).
+[`spec/manifest.schema.yaml`](https://github.com/MolCrafts/molhub/blob/dev/spec/manifest.schema.yaml).
 
 ## Repository contract
 
@@ -58,25 +58,24 @@ The manifest contract is documented in
 
 ## CI
 
-Every workflow checks out the MolHub toolchain (`MolCrafts/molhub` at `dev`,
-or its branch of the same name as the one being built) and validates this
-database with it; see `.github/actions/build-registry`.
+Every workflow checks out the MolHub toolchain (`MolCrafts/molhub` at `dev`)
+and validates this database with it.
 
-Each workflow's first job, `<file> / context`, runs
-`MolCrafts/molcrafts-ci/actions/ci-context`, and every other job gates on its
-outputs. The tier is fast on a feature-branch push to MolCrafts, full
-on every push to a fork (proven before its pull request), on `dev`, `master`
-and `main` on MolCrafts, on pull requests, tags and dispatches.
+Each workflow's first job, `<file> / context`, calls
+`MolCrafts/molcrafts-ci/.github/workflows/context.yml`, and every other job
+gates on its outputs. The tier is fast on a feature-branch push to MolCrafts,
+full on every push to a fork (proven before its pull request), on `dev` and
+`master` on MolCrafts, on pull requests, tags and dispatches.
 
 | workflow | fast tier | full tier | upstream only |
 |---|---|---|---|
-| `lint.yml` | `lint / context`, `lint / workflows` (the workflows against the MolCrafts CI scheme, `actions/check-workflows`) | same | — |
-| `test.yml` | `test / context`, `test / registry` (layout, validate, build read models) | + `test / tooling` (MolHub contract and registry-tools gates) | — |
-| `deploy.yml` | — | — | push to `main`: `deploy / snapshot` publishes `dist/` to Cloudflare Pages and asks MolHub Web to rebuild |
+| `test.yml` | `test / registry` (layout, validate, build read models), `test / workflows` (the workflows against the MolCrafts CI scheme, `actions/check-workflows`) | + `test / tooling` (MolHub contract and registry-tools gates) | — |
+| `deploy.yml` | — | — | push to `master`: `deploy / snapshot` publishes `dist/` to Cloudflare Pages (environment `cloudflare-pages`) and asks MolHub Web to rebuild |
 | `nightly.yml` | — | — | weekly: `nightly / health` checks every locator's metadata |
 
-A pull request inside a fork is skipped: its push already ran the full tier.
-The shared setup actions come from `MolCrafts/molcrafts-ci/actions/*@master`.
+`test / result` is the one required check. A pull request inside a fork is
+skipped: its push already ran the full tier. Every `MolCrafts/molcrafts-ci`
+action and reusable workflow is pinned to a full commit SHA.
 
 ## License
 
