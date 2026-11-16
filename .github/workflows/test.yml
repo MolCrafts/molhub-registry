@@ -3,14 +3,14 @@ name: test
 # Two tiers (`test / context` decides); see "CI" in README.md.
 #
 #   fast  a feature-branch push to MolCrafts: test / registry.
-#   full  every push to a fork (proven before its pull request), dev, master
-#         and main on MolCrafts, pull requests, tags and dispatches:
+#   full  every push to a fork (proven before its pull request), dev and
+#         master on MolCrafts, pull requests, tags and dispatches:
 #         + test / tooling.
 on:
   push:
     branches: ["**"]
   pull_request:
-    branches: [dev, master, main]
+    branches: [dev, master]
   workflow_dispatch:
 
 permissions:
@@ -23,19 +23,12 @@ concurrency:
   cancel-in-progress: ${{ !contains(fromJSON('["refs/heads/dev","refs/heads/master"]'), github.ref) && !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
-  # Where this run happens, decided once: MolCrafts/molcrafts-ci/actions/ci-context.
+  # Where this run happens, decided once: MolCrafts/molcrafts-ci context.yml.
   context:
-    name: test / context
-    runs-on: ubuntu-latest
-    outputs:
-      tier: ${{ steps.context.outputs.tier }}
-      upstream: ${{ steps.context.outputs.upstream }}
-      integration: ${{ steps.context.outputs.integration }}
-      skip-pr: ${{ steps.context.outputs.skip-pr }}
-      publish: ${{ steps.context.outputs.publish }}
-    steps:
-      - id: context
-        uses: MolCrafts/molcrafts-ci/actions/ci-context@master
+    permissions:
+      contents: read
+    name: test
+    uses: MolCrafts/molcrafts-ci/.github/workflows/context.yml@3cc26f4ff1b8b6d09365d677c4a05cc8cbb70a76
 
   # This database: data-only layout, every manifest valid, read models build.
   registry:
@@ -46,12 +39,12 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-      - uses: MolCrafts/molcrafts-ci/actions/setup-partners@master
+      - uses: MolCrafts/molcrafts-ci/actions/setup-partners@3cc26f4ff1b8b6d09365d677c4a05cc8cbb70a76
         with:
           repository: MolCrafts/molhub
           ref: dev
           path: .molhub-tooling
-      - uses: MolCrafts/molcrafts-ci/actions/setup-node@master
+      - uses: MolCrafts/molcrafts-ci/actions/setup-node@3cc26f4ff1b8b6d09365d677c4a05cc8cbb70a76
         with:
           working-directory: .molhub-tooling
       - name: Layout, validate, and build the registry
@@ -71,12 +64,12 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-      - uses: MolCrafts/molcrafts-ci/actions/setup-partners@master
+      - uses: MolCrafts/molcrafts-ci/actions/setup-partners@3cc26f4ff1b8b6d09365d677c4a05cc8cbb70a76
         with:
           repository: MolCrafts/molhub
           ref: dev
           path: .molhub-tooling
-      - uses: MolCrafts/molcrafts-ci/actions/setup-node@master
+      - uses: MolCrafts/molcrafts-ci/actions/setup-node@3cc26f4ff1b8b6d09365d677c4a05cc8cbb70a76
         with:
           working-directory: .molhub-tooling
       - name: Layout, validate, and build the registry
@@ -92,3 +85,26 @@ jobs:
           npm run lint --workspace @molcrafts/molhub-registry-tools
           npm run typecheck --workspace @molcrafts/molhub-registry-tools
           npm run registry:test
+
+  # The workflows themselves, against the MolCrafts CI scheme.
+  workflow-policy:
+    name: test / workflows
+    needs: context
+    if: needs.context.outputs.skip-pr != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: MolCrafts/molcrafts-ci/actions/check-workflows@3cc26f4ff1b8b6d09365d677c4a05cc8cbb70a76
+
+  result:
+    name: test / result
+    needs: [context, registry, tooling, workflow-policy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every job succeeded or was skipped
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: echo "$RESULTS" | jq -e 'all(.[]; . == "success" or . == "skipped")'
